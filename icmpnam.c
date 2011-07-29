@@ -58,7 +58,7 @@ struct configopts {
 } configopts[] = {
 	{"remote", 	NULL, 	1},
 	{"dev", 	NULL, 	3},
-	{NULL, 		NULL, 		-1},
+	{NULL, 		NULL, 	-1},
 };
 
 __dead void
@@ -148,6 +148,7 @@ conf_load(char *cfile)
 		}
 		free(line);
 	}
+	fclose(config);
 }
 
 void
