@@ -119,7 +119,6 @@ conf_load(char *cfile)
 			if (strncasecmp(cp, copts->name, wordlen))
 				continue;
 			/* match */
-			printf("match %s\n", cp);
 			nargs = copts->nargs;
 			cp += wordlen;
 			while (nargs) {
@@ -142,9 +141,12 @@ conf_load(char *cfile)
 			if (*cp != 0)
 				log_errx("%s: line %d superfluous "
 				    "argument", cfile, lineno);
-			
-			/* copts->func(argv); */
+			nargs = copts->nargs;
+			while (nargs)
+				free(argv[--nargs]);
+			/* XXX notyet copts->func(argv); */
 		}
+		free(line);
 	}
 }
 
