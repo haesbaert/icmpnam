@@ -226,7 +226,7 @@ main(int argc, char *argv[])
 	setproctitle("icmpnam");
 	/* Load config */
 	if (conf_load(cfile) != 0)
-		fatalx("config load error"); 
+		fatalx("can't parse config file"); 
 	/* Start libevent prior to open sockets */
 	event_init();
 	/* Open tun interface and socket */
