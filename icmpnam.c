@@ -41,6 +41,8 @@
 __dead void	usage(void);
 __dead void	display_version(void);
 int		conf_load(char *);
+int		conf_remote(char **);
+int		conf_dev(char **);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
@@ -53,7 +55,7 @@ struct sockaddr_in	sin_remote;
 
 struct configopts {
 	char	*name;
-	void 	(*func)(char **);
+	int 	(*func)(char **);
 	int	 nargs;
 } configopts[] = {
 	{"remote", 	NULL, 	1},
@@ -79,6 +81,17 @@ display_version(void)
 	printf("Copyright (C) 2011 Christiano F. Haesbaert\n");
 	
 	exit(0);
+}
+
+int
+conf_remote(char **argv)
+{
+	return (0);
+}
+
+int conf_dev(char **argv)
+{
+	return (0);
 }
 
 /* mostly copied from scrotwm */
@@ -154,7 +167,8 @@ conf_load(char *cfile)
 			nargs = copts->nargs;
 			while (nargs)
 				free(argv[--nargs]);
-			/* XXX notyet copts->func(argv); */
+			if (copts->func(argv) == -1)
+				return (-1);
 		}
 		free(line);
 	}
