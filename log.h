@@ -26,8 +26,6 @@ void		log_verbose(int);
 void		vlog(int, const char *, va_list);
 void		log_warn(const char *, ...);
 void		log_warnx(const char *, ...);
-void		log_err(const char *emsg, ...);
-void		log_errx(const char *emsg, ...);
 void		log_info(const char *, ...);
 void		log_debug(const char *, ...);
 void		fatal(const char *) __dead;

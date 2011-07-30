@@ -121,42 +121,6 @@ log_warnx(const char *emsg, ...)
 }
 
 void
-log_err(const char *emsg, ...)
-{
-	char	*nfmt;
-	va_list	 ap;
-
-	/* best effort to even work in out of memory situations */
-	if (emsg == NULL)
-		logit(LOG_CRIT, "%s", strerror(errno));
-	else {
-		va_start(ap, emsg);
-
-		if (asprintf(&nfmt, "%s: %s", emsg, strerror(errno)) == -1) {
-			/* we tried it... */
-			vlog(LOG_CRIT, emsg, ap);
-			logit(LOG_CRIT, "%s", strerror(errno));
-		} else {
-			vlog(LOG_CRIT, nfmt, ap);
-			free(nfmt);
-		}
-		va_end(ap);
-	}
-	exit(1);
-}
-
-void
-log_errx(const char *emsg, ...)
-{
-	va_list	 ap;
-
-	va_start(ap, emsg);
-	vlog(LOG_CRIT, emsg, ap);
-	va_end(ap);
-	exit(1);
-}
-
-void
 log_info(const char *emsg, ...)
 {
 	va_list	 ap;
