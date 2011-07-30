@@ -40,7 +40,7 @@
 
 __dead void	usage(void);
 __dead void	display_version(void);
-void		conf_load(char *);
+int		conf_load(char *);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
@@ -82,7 +82,7 @@ display_version(void)
 }
 
 /* mostly copied from scrotwm */
-void
+int
 conf_load(char *cfile)
 {
 	FILE *config;
@@ -94,13 +94,17 @@ conf_load(char *cfile)
 	len = lineno = 0;
 	if (cfile == NULL)
 		fatalx("conf_load: no filename");
-	if ((config = fopen(cfile, "r")) == NULL)
-		log_err("conf_load: fopen %s", cfile);
+	if ((config = fopen(cfile, "r")) == NULL) {
+		log_warn("conf_load: fopen %s", cfile);
+		return (-1);
+	}
 	while (!feof(config)) {
 		if ((line = fparseln(config, &len, &lineno, NULL, 0))
 		    == NULL) {
-			if (ferror(config))
-				log_err("%s", cfile);
+			if (ferror(config)) {
+				log_warn("%s", cfile);
+				return (-1);
+			}
 			else
 				continue;
 		}
@@ -112,9 +116,11 @@ conf_load(char *cfile)
 			continue;
 		}
 		wordlen = strcspn(cp, " \t\n");
-		if (wordlen == 0)
-			log_err("%s: line %zd: no option found",
+		if (wordlen == 0) {
+			log_warnx("%s: line %zd: no option found",
 			    cfile, lineno);
+			return (-1);
+		}
 		for (copts = configopts; copts->name; copts++) {
 			if (strncasecmp(cp, copts->name, wordlen))
 				continue;
@@ -124,14 +130,18 @@ conf_load(char *cfile)
 			while (nargs) {
 				cp += strspn(cp, " \t\n");
 				wordlen = strcspn(cp, " \t\n");
-				if (wordlen == 0)
-					log_errx("%s wants %d arguments, "
+				if (wordlen == 0) {
+					log_warnx("%s wants %d arguments, "
 					    "%d given", copts->name,
 					    copts->nargs,
 					    copts->nargs - nargs);
-				if (wordlen >= (int)sizeof(tmp))
-					log_errx("%s: line %zd "
+					return (-1);
+				}
+				if (wordlen >= (int)sizeof(tmp)) {
+					log_warnx("%s: line %zd "
 					    "too long", cfile, lineno);
+					return (-1);
+				}
 				(void)strlcpy(tmp, cp, wordlen + 1);
 				argv[copts->nargs - nargs] = strdup(tmp);
 				nargs--;
@@ -139,8 +149,8 @@ conf_load(char *cfile)
 			}
 			cp += strspn(cp, " \t\n");
 			if (*cp != 0)
-				log_errx("%s: line %d superfluous "
-				    "argument", cfile, lineno);
+				log_warnx("%s: line %d superfluous "
+				    "argument, ignoring", cfile, lineno);
 			nargs = copts->nargs;
 			while (nargs)
 				free(argv[--nargs]);
@@ -149,6 +159,8 @@ conf_load(char *cfile)
 		free(line);
 	}
 	fclose(config);
+	
+	return (0);
 }
 
 void
@@ -199,7 +211,8 @@ main(int argc, char *argv[])
 	/* Show who we are */
 	setproctitle("icmpnam");
 	/* Load config */
-	conf_load(cfile);
+	if (conf_load(cfile) != 0)
+		fatalx("config load error"); 
 	/* Start libevent prior to open sockets */
 	event_init();
 	/* Open tun interface and socket */
