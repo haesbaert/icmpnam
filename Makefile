@@ -6,7 +6,7 @@ PROG=	icmpnam
 SRCS=	log.c icmpnam.c
 MAN=
 
-CFLAGS+= -g -Wall -I${.CURDIR} -I../
+CFLAGS+= -g -ggdb -O0 -Wall -I${.CURDIR}
 CFLAGS+= -Wstrict-prototypes -Wmissing-prototypes
 CFLAGS+= -Wmissing-declarations
 CFLAGS+= -Wshadow -Wpointer-arith -Wcast-qual

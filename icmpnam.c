@@ -20,6 +20,7 @@
 #include <sys/queue.h>
 #include <sys/uio.h>
 
+#include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -47,20 +48,23 @@ void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
 
-extern char		*malloc_options;
-int			sock_tun;
-int			sock_icmp;
-int			sock_divert;
-struct sockaddr_in	sin_remote;
+extern char	*malloc_options;
+int		 sock_tun;
+int		 sock_icmp;
+int		 sock_divert;
+struct in_addr	 in_remote;
+char		 tun_dev[IFNAMSIZ];
+struct in_addr	 tun_us;
+struct in_addr	 tun_them;
 
 struct configopts {
 	char	*name;
 	int 	(*func)(char **);
 	int	 nargs;
 } configopts[] = {
-	{"remote", 	NULL, 	1},
-	{"dev", 	NULL, 	3},
-	{NULL, 		NULL, 	-1},
+	{"remote", 	conf_remote, 	1},
+	{"dev", 	conf_dev, 	3},
+	{NULL, 		NULL, 		-1},
 };
 
 __dead void
@@ -86,11 +90,37 @@ display_version(void)
 int
 conf_remote(char **argv)
 {
+	char *s = argv[0];
+	
+	if (inet_aton(s, &in_remote) == -1) {
+		log_warn("invalid remote");
+		return (-1);
+	}
+	log_debug("remote %s", s);
+	
 	return (0);
 }
 
 int conf_dev(char **argv)
 {
+	char	*dev  = argv[0];
+	char	*us   = argv[1];
+	char	*them = argv[2];
+
+	if (strncmp(dev, "tun", 3) != 0) {
+		log_warnx("Invalid dev, need a tun interface");
+		return (-1);
+	}
+	if (inet_aton(us, &tun_us) == -1) {
+		log_warn("invalid address %s", us);
+		return (-1);
+	}
+	if (inet_aton(them, &tun_them) == -1) {
+		log_warn("invalid address %s", them);
+		return (-1);
+	}
+	log_debug("dev %s %s %s", dev, us, them);
+	
 	return (0);
 }
 
@@ -165,10 +195,10 @@ conf_load(char *cfile)
 				log_warnx("%s: line %d superfluous "
 				    "argument, ignoring", cfile, lineno);
 			nargs = copts->nargs;
-			while (nargs)
-				free(argv[--nargs]);
 			if (copts->func(argv) == -1)
 				return (-1);
+			while (nargs)
+				free(argv[--nargs]);
 		}
 		free(line);
 	}
