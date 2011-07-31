@@ -22,6 +22,7 @@
 
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <arpa/inet.h>
 
 #include <fcntl.h>
@@ -212,6 +213,8 @@ void
 tun_open(void)
 {
 	struct ifreq ifr;
+	struct in_aliasreq ifra;
+	char tunpath[16];
 	int s;
 	
 	bzero(&ifr, sizeof(ifr));
@@ -221,8 +224,23 @@ tun_open(void)
 		fatal("socket");
 	if (ioctl(s, SIOCIFDESTROY, &ifr) == -1 && errno != ENXIO)
 		fatal("ioctl: SIOCIFDESTROY");
-	if (ioctl(s, SIOCIFCREATE, (caddr_t)&ifr) < 0)
+	if (ioctl(s, SIOCIFCREATE, (caddr_t)&ifr) == -1)
 		fatal("ioctl: SIOCIFCREATE");
+	/* ifra */
+	bzero(&ifra, sizeof(ifra));
+	strlcpy(ifra.ifra_name, tun_dev, sizeof(ifra.ifra_name));
+	ifra.ifra_addr.sin_len	     = sizeof(struct sockaddr_in);
+	ifra.ifra_addr.sin_family    = AF_INET;
+	ifra.ifra_addr.sin_addr	     = tun_us;
+	ifra.ifra_dstaddr.sin_len    = sizeof(struct sockaddr_in);
+	ifra.ifra_dstaddr.sin_family = AF_INET;
+	ifra.ifra_dstaddr.sin_addr   = tun_them;
+	if (ioctl(s, SIOCAIFADDR, (caddr_t)&ifra) == -1)
+		fatal("ioctl: SIOCAIFADDR");
+	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
+	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
+		fatal("open");
+	log_debug("sock_tun = %d", sock_tun);
 }
 
 void
