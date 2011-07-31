@@ -111,6 +111,7 @@ int conf_dev(char **argv)
 		log_warnx("Invalid dev, need a tun interface");
 		return (-1);
 	}
+	(void)strlcpy(tun_dev, dev, sizeof(tun_dev));
 	if (inet_aton(us, &tun_us) == -1) {
 		log_warn("invalid address %s", us);
 		return (-1);
@@ -210,7 +211,18 @@ conf_load(char *cfile)
 void
 tun_open(void)
 {
+	struct ifreq ifr;
+	int s;
 	
+	bzero(&ifr, sizeof(ifr));
+	(void)strlcpy(ifr.ifr_name, tun_dev, sizeof(ifr.ifr_name));
+	ifr.ifr_addr.sa_family = AF_INET;
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+		fatal("socket");
+	if (ioctl(s, SIOCIFDESTROY, &ifr) == -1 && errno != ENXIO)
+		fatal("ioctl: SIOCIFDESTROY");
+	if (ioctl(s, SIOCIFCREATE, (caddr_t)&ifr) < 0)
+		fatal("ioctl: SIOCIFCREATE");
 }
 
 void
