@@ -206,6 +206,12 @@ conf_load(char *cfile)
 	}
 	fclose(config);
 	
+	/* Check if we have everything */
+	if (tun_dev[0] == 0)
+		fatalx("no dev specified");
+	if (in_remote.s_addr == 0)
+		fatalx("no remote specified");
+	
 	return (0);
 }
 
