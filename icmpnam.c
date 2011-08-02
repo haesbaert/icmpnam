@@ -246,6 +246,7 @@ tun_open(void)
 	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
 	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
 		fatal("open");
+	close(s);
 	log_debug("sock_tun = %d", sock_tun);
 }
 
@@ -258,6 +259,7 @@ icmp_open(void)
 void
 divert_open(void)
 {
+
 	
 }
 
