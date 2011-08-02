@@ -374,7 +374,7 @@ main(int argc, char *argv[])
 	icmp_open();
 	/* Open divert socket */
 	divert_open();
-	/* TODO Set events */
+	/* Set events */
 	event_set(&ev_tun, sock_tun, EV_READ|EV_PERSIST,
 	    tun_read, NULL);
 	event_add(&ev_tun, NULL);
