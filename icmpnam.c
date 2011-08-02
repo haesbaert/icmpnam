@@ -40,6 +40,7 @@
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
 #define DIVERT_PORT	1805
+#define READ_BUF_SIZE	65535
 
 __dead void	usage(void);
 __dead void	display_version(void);
@@ -50,6 +51,9 @@ int		conf_divert_port(char **);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
+void		tun_read(int, short, void *);
+void		icmp_read(int, short, void *);
+void		divert_read(int, short, void *);
 
 extern char	*malloc_options;
 int		 sock_tun;
@@ -60,6 +64,7 @@ char		 tun_dev[IFNAMSIZ];
 struct in_addr	 tun_us;
 struct in_addr	 tun_them;
 u_int16_t	 divert_port = DIVERT_PORT;
+char		 read_buf[READ_BUF_SIZE];
 
 struct configopts {
 	char	*name;
@@ -293,11 +298,47 @@ divert_open(void)
 	log_debug("sock_divert = %d", sock_divert);
 }
 
+/* TODO */
+void
+tun_read(int fd, short event, void *unused)
+{
+	ssize_t n;
+	
+	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
+		fatal("tun_read: read");
+	else if (n == 0)
+		fatalx("tun_read: closed socket");
+	
+}
+/* TODO */
+void
+icmp_read(int fd, short event, void *unused)
+{
+	ssize_t n;
+	
+	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
+		fatal("icmp_read: read");
+	else if (n == 0)
+		fatalx("icmp_read: closed socket");
+}
+/* TODO */
+void
+divert_read(int fd, short event, void *unused)
+{
+	ssize_t n;
+	
+	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
+		fatal("divert_read: read");
+	else if (n == 0)
+		fatalx("divert_read: closed socket");
+}
+
 int
 main(int argc, char *argv[])
 {
 	int ch, debug;
 	char *cfile;
+	struct event ev_tun, ev_divert, ev_icmp;
 	
 	debug = 0;
 	cfile = CONFIGFILE;
@@ -333,6 +374,16 @@ main(int argc, char *argv[])
 	icmp_open();
 	/* Open divert socket */
 	divert_open();
+	/* TODO Set events */
+	event_set(&ev_tun, sock_tun, EV_READ|EV_PERSIST,
+	    tun_read, NULL);
+	event_add(&ev_tun, NULL);
+	event_set(&ev_icmp, sock_icmp, EV_READ|EV_PERSIST,
+	    icmp_read, NULL);
+	event_add(&ev_icmp, NULL);
+	event_set(&ev_divert, sock_divert, EV_READ|EV_PERSIST,
+	    divert_read, NULL);
+	event_add(&ev_divert, NULL);
 	/* Finally go daemon */
 	if (!debug)
 		daemon(1, 0);
