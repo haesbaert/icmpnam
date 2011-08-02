@@ -39,6 +39,7 @@
 
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
+#define DIVERT_PORT	1805
 
 __dead void	usage(void);
 __dead void	display_version(void);
@@ -57,6 +58,7 @@ struct in_addr	 in_remote;
 char		 tun_dev[IFNAMSIZ];
 struct in_addr	 tun_us;
 struct in_addr	 tun_them;
+u_int16_t	 divert_port = DIVERT_PORT;
 
 struct configopts {
 	char	*name;
@@ -259,8 +261,15 @@ icmp_open(void)
 void
 divert_open(void)
 {
-
+	struct sockaddr_in sin;
 	
+	bzero(&sin, sizeof(sin));
+	sin.sin_port = htons(divert_port);
+	if ((sock_divert = socket(AF_INET, SOCK_RAW, IPPROTO_DIVERT)) == -1)
+		fatal("socket");
+	if (bind(sock_divert, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+		fatal("bind");
+	log_debug("sock_divert = %d", sock_divert);
 }
 
 int
