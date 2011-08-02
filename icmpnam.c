@@ -317,7 +317,6 @@ main(int argc, char *argv[])
 	/* Finally go daemon */
 	if (!debug)
 		daemon(1, 0);
-	
 	log_info("startup");
 	/* Mainloop */
 	event_dispatch();
