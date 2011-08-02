@@ -255,7 +255,9 @@ tun_open(void)
 void
 icmp_open(void)
 {
-	
+	if ((sock_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
+		fatal("socket");
+	log_debug("sock_icmp = %d", sock_icmp);
 }
 
 void
