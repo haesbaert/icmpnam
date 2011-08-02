@@ -299,8 +299,8 @@ main(int argc, char *argv[])
 			/* NOTREACHED */
 		}
 	}
-	/* Log to stderr until daemonized */
-	log_init(1);	
+	/* Log init */
+	log_init(debug);	
 	/* Show who we are */
 	setproctitle("icmpnam");
 	/* Load config */
@@ -315,9 +315,10 @@ main(int argc, char *argv[])
 	/* Open divert socket */
 	divert_open();
 	/* Finally go daemon */
-	log_init(debug);
 	if (!debug)
 		daemon(1, 0);
+	
+	log_info("startup");
 	/* Mainloop */
 	event_dispatch();
 		    
