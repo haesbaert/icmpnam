@@ -46,6 +46,7 @@ __dead void	display_version(void);
 int		conf_load(char *);
 int		conf_remote(char **);
 int		conf_dev(char **);
+int		conf_divert_port(char **);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
@@ -65,9 +66,10 @@ struct configopts {
 	int 	(*func)(char **);
 	int	 nargs;
 } configopts[] = {
-	{"remote", 	conf_remote, 	1},
-	{"dev", 	conf_dev, 	3},
-	{NULL, 		NULL, 		-1},
+	{"remote", 	conf_remote, 		1},
+	{"dev", 	conf_dev, 		3},
+	{"divert_port",	conf_divert_port,	1},
+	{NULL, 		NULL, 			-1},
 };
 
 __dead void
@@ -104,14 +106,15 @@ conf_remote(char **argv)
 	return (0);
 }
 
-int conf_dev(char **argv)
+int
+conf_dev(char **argv)
 {
 	char	*dev  = argv[0];
 	char	*us   = argv[1];
 	char	*them = argv[2];
 
 	if (strncmp(dev, "tun", 3) != 0) {
-		log_warnx("Invalid dev, need a tun interface");
+		log_warnx("invalid dev, need a tun interface");
 		return (-1);
 	}
 	(void)strlcpy(tun_dev, dev, sizeof(tun_dev));
@@ -124,6 +127,22 @@ int conf_dev(char **argv)
 		return (-1);
 	}
 	log_debug("dev %s %s %s", dev, us, them);
+	
+	return (0);
+}
+
+int
+conf_divert_port(char **argv)
+{
+	const char *errstr;
+	char *sport = argv[0];
+	
+	divert_port = strtonum(sport, 0, USHRT_MAX, &errstr);
+	if (errstr) {
+		log_warnx("Invalid divert_port option %s.", sport);
+		return (-1);
+	}
+	log_debug("divert_port = %u", divert_port);
 	
 	return (0);
 }
