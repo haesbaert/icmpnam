@@ -43,6 +43,7 @@
 
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
+#define MAGIC_ID	1805
 #define DIVERT_PORT	1805
 #define BUFSIZE		65636
 
@@ -381,6 +382,11 @@ divert_read(int fd, short event, void *unused)
 	if (icmp->icmp_code != 0) {
 		log_warnx("divert_read: invalid icmp code %u",
 		    icmp->icmp_code);
+		return;
+	}
+	if (ntohs(icmp->icmp_id) != MAGIC_ID) {
+		log_debug("divert_read: packet not for us, id %u",
+		    ntohs(icmp->icmp_id));
 		return;
 	}
 	n -= ICMP_MINLEN;
