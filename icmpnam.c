@@ -253,7 +253,7 @@ tun_open(void)
 	(void)strlcpy(ifr.ifr_name, tun_dev, sizeof(ifr.ifr_name));
 	ifr.ifr_addr.sa_family = AF_INET;
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
-		fatal("socket");
+		fatal("tun socket");
 	if (ioctl(s, SIOCIFDESTROY, &ifr) == -1 && errno != ENXIO)
 		fatal("ioctl: SIOCIFDESTROY");
 	if (ioctl(s, SIOCIFCREATE, (caddr_t)&ifr) == -1)
@@ -271,7 +271,7 @@ tun_open(void)
 		fatal("ioctl: SIOCAIFADDR");
 	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
 	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
-		fatal("open");
+		fatal("tun open");
 	close(s);
 	log_debug("sock_tun = %d", sock_tun);
 }
@@ -282,7 +282,7 @@ icmp_open(void)
 	int bufsize = BUFSIZE;
 	
 	if ((sock_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
-		fatal("socket");
+		fatal("icmp socket");
 	if (setsockopt(sock_icmp, SOL_SOCKET, SO_RCVBUF,
 	    &bufsize, sizeof(bufsize)) == -1)
 		log_warn("imcp set recv buffer size");
@@ -299,13 +299,12 @@ divert_open(void)
 	bzero(&sin, sizeof(sin));
 	sin.sin_port = htons(divert_port);
 	if ((sock_divert = socket(AF_INET, SOCK_RAW, IPPROTO_DIVERT)) == -1)
-		fatal("socket");
+		fatal("divert socket");
 	if (setsockopt(sock_divert, SOL_SOCKET, SO_RCVBUF,
 	    &bufsize, sizeof(bufsize)) == -1)
 		log_warn("divert set recv buffer size");
-
 	if (bind(sock_divert, (struct sockaddr *)&sin, sizeof(sin)) == -1)
-		fatal("bind");
+		fatal("divert bind");
 	log_debug("sock_divert = %d", sock_divert);
 }
 
