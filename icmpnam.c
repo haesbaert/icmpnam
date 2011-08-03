@@ -248,7 +248,7 @@ tun_open(void)
 	struct in_aliasreq ifra;
 	struct tuninfo ti;
 	char tunpath[16];
-	int s;
+	int s, nonblock = 1;
 	
 	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
@@ -260,6 +260,8 @@ tun_open(void)
 	ti.mtu = TUNMRU;	/* Maximum value */
 	if (ioctl(sock_tun, TUNSIFINFO, &ti) == -1)
 		fatal("ioctl: TUNGIFINFO");
+	if (ioctl(sock_tun, FIONBIO, &nonblock) == -1)
+		fatal("ioctl: FIONBIO");
 	bzero(&ifra, sizeof(ifra));
 	strlcpy(ifra.ifra_name, tun_dev, sizeof(ifra.ifra_name));
 	ifra.ifra_addr.sin_len	     = sizeof(struct sockaddr_in);
@@ -278,12 +280,18 @@ void
 icmp_open(void)
 {
 	int bufsize = BUFSIZE;
+	int r;
 	
 	if ((sock_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
 		fatal("icmp socket");
 	if (setsockopt(sock_icmp, SOL_SOCKET, SO_RCVBUF,
 	    &bufsize, sizeof(bufsize)) == -1)
 		log_warn("imcp set recv buffer size");
+	if ((r = fcntl(sock_icmp, F_GETFL, 0)) == -1)
+		fatal("icmp fcntl(F_GETFL)");
+	r |= O_NONBLOCK;
+	if (fcntl(sock_icmp, F_SETFL, r) == -1)
+		fatal("icmp fcntl(F_SETFL, O_NONBLOCK)");
 	log_debug("sock_icmp = %d", sock_icmp);
 }
 
@@ -292,6 +300,7 @@ divert_open(void)
 {
 	struct sockaddr_in sin;
 	int bufsize = BUFSIZE;
+	int r;
 	
 	bzero(&sin, sizeof(sin));
 	sin.sin_port = htons(divert_port);
@@ -300,6 +309,11 @@ divert_open(void)
 	if (setsockopt(sock_divert, SOL_SOCKET, SO_RCVBUF,
 	    &bufsize, sizeof(bufsize)) == -1)
 		log_warn("divert set recv buffer size");
+	if ((r = fcntl(sock_divert, F_GETFL, 0)) == -1)
+		fatal("divert fcntl(F_GETFL)");
+	r |= O_NONBLOCK;
+	if (fcntl(sock_divert, F_SETFL, r) == -1)
+		fatal("divert fcntl(F_SETFL, O_NONBLOCK)");
 	if (bind(sock_divert, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 		fatal("divert bind");
 	log_debug("sock_divert = %d", sock_divert);
@@ -333,7 +347,7 @@ void
 divert_read(int fd, short event, void *unused)
 {
 	ssize_t n;
-	
+
 	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
 		fatal("divert_read: read");
 	else if (n == 0)
