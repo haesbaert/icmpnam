@@ -400,7 +400,10 @@ again:
 		goto again;
 	}
 	else if (n2 == 0)
-		fatalx("divert_read: tun closed")
+		fatalx("divert_read: tun closed");
+	else if (n2 != n)
+		log_warnx("divert_read: write shortcount %zd/%zd",
+		    n2, n);
 }
 
 int
