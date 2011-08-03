@@ -41,7 +41,7 @@
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
 #define DIVERT_PORT	1805
-#define BUFSIZE		65535
+#define BUFSIZE		65636
 
 __dead void	usage(void);
 __dead void	display_version(void);
