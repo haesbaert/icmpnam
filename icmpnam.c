@@ -244,21 +244,15 @@ conf_load(char *cfile)
 void
 tun_open(void)
 {
-	struct ifreq ifr;
 	struct in_aliasreq ifra;
 	char tunpath[16];
 	int s;
 	
-	bzero(&ifr, sizeof(ifr));
-	(void)strlcpy(ifr.ifr_name, tun_dev, sizeof(ifr.ifr_name));
-	ifr.ifr_addr.sa_family = AF_INET;
+	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
 		fatal("tun socket");
-	if (ioctl(s, SIOCIFDESTROY, &ifr) == -1 && errno != ENXIO)
-		fatal("ioctl: SIOCIFDESTROY");
-	if (ioctl(s, SIOCIFCREATE, (caddr_t)&ifr) == -1)
-		fatal("ioctl: SIOCIFCREATE");
-	/* ifra */
+	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
+		fatal("tun open");
 	bzero(&ifra, sizeof(ifra));
 	strlcpy(ifra.ifra_name, tun_dev, sizeof(ifra.ifra_name));
 	ifra.ifra_addr.sin_len	     = sizeof(struct sockaddr_in);
@@ -269,9 +263,6 @@ tun_open(void)
 	ifra.ifra_dstaddr.sin_addr   = tun_them;
 	if (ioctl(s, SIOCAIFADDR, (caddr_t)&ifra) == -1)
 		fatal("ioctl: SIOCAIFADDR");
-	(void)snprintf(tunpath, sizeof(tunpath), "/dev/%s", tun_dev);
-	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
-		fatal("tun open");
 	close(s);
 	log_debug("sock_tun = %d", sock_tun);
 }
