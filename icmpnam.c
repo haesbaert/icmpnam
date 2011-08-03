@@ -24,6 +24,9 @@
 #include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <arpa/inet.h>
 
 #include <fcntl.h>
@@ -65,7 +68,11 @@ char		 tun_dev[IFNAMSIZ];
 struct in_addr	 tun_us;
 struct in_addr	 tun_them;
 u_int16_t	 divert_port = DIVERT_PORT;
-char		 read_buf[BUFSIZE];
+union {
+	struct icmp	icmp;
+	char		buf[BUFSIZE];
+} read_buf;
+#define read_buf read_buf.buf
 
 struct configopts {
 	char	*name;
@@ -342,16 +349,58 @@ icmp_read(int fd, short event, void *unused)
 	else if (n == 0)
 		fatalx("icmp_read: closed socket");
 }
-/* TODO */
+
 void
 divert_read(int fd, short event, void *unused)
 {
-	ssize_t n;
+	ssize_t n, n2;
+	char *p;
+	struct icmp *icmp;
+	struct ip *ip;
 
-	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
-		fatal("divert_read: read");
+	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1) {
+		if (errno != EINTR && errno != EAGAIN)
+			fatal("divert_read: read");
+		return;
+	}
 	else if (n == 0)
 		fatalx("divert_read: closed socket");
+	/* NOTE alignment assured by union */
+	p = read_buf;
+	/* ICMP */
+	icmp = (struct icmp *)p;
+	if (n < ICMP_MINLEN) {
+		log_warnx("divert_read: invalid icmp packet len %zd", n);
+		return;
+	}
+	if (icmp->icmp_type != ICMP_ECHO) {
+		log_warnx("divert_read: invalid icmp type %u",
+		    icmp->icmp_type);
+		return;
+	}
+	if (icmp->icmp_code != 0) {
+		log_warnx("divert_read: invalid icmp code %u",
+		    icmp->icmp_code);
+		return;
+	}
+	n -= ICMP_MINLEN;
+	p += ICMP_MINLEN;
+	/* IP */
+	/* NOTE still aligned */
+	ip = (struct ip *)p;
+	if (n < (ssize_t)sizeof(struct ip)) {
+		log_warnx("divert_read: invalid ip packet len %zd", n);
+		return;
+	}
+	/* Tun injection */
+again:
+	if ((n2 = write(sock_tun, ip, n)) == -1) {
+		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
+			goto again;
+		fatal("divert_read: tun write");
+	}
+	else if (n2 == 0)
+		fatalx("divert_read: tun closed");
 }
 
 int
