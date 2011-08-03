@@ -396,11 +396,11 @@ divert_read(int fd, short event, void *unused)
 again:
 	if ((n2 = write(sock_tun, ip, n)) == -1) {
 		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
-			goto again;
-		fatal("divert_read: tun write");
+			fatal("divert_read: tun write");
+		goto again;
 	}
 	else if (n2 == 0)
-		fatalx("divert_read: tun closed");
+		fatalx("divert_read: tun closed")
 }
 
 int
