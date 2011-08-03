@@ -40,7 +40,7 @@
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
 #define DIVERT_PORT	1805
-#define READ_BUF_SIZE	65535
+#define BUFSIZE		65535
 
 __dead void	usage(void);
 __dead void	display_version(void);
@@ -64,7 +64,7 @@ char		 tun_dev[IFNAMSIZ];
 struct in_addr	 tun_us;
 struct in_addr	 tun_them;
 u_int16_t	 divert_port = DIVERT_PORT;
-char		 read_buf[READ_BUF_SIZE];
+char		 read_buf[BUFSIZE];
 
 struct configopts {
 	char	*name;
@@ -279,8 +279,13 @@ tun_open(void)
 void
 icmp_open(void)
 {
+	int bufsize = BUFSIZE;
 	if ((sock_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
 		fatal("socket");
+	if (setsockopt(sock_icmp, SOL_SOCKET, SO_RCVBUF,
+	    &bufsize, sizeof(bufsize)) == -1)
+		log_warn("imcp set recv buffer size");
+
 	log_debug("sock_icmp = %d", sock_icmp);
 }
 
