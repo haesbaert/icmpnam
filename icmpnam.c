@@ -21,6 +21,7 @@
 #include <sys/uio.h>
 
 #include <net/if.h>
+#include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
@@ -245,6 +246,7 @@ void
 tun_open(void)
 {
 	struct in_aliasreq ifra;
+	struct tuninfo ti;
 	char tunpath[16];
 	int s;
 	
@@ -253,6 +255,11 @@ tun_open(void)
 		fatal("tun socket");
 	if ((sock_tun = open(tunpath, O_RDWR, 0)) == -1)
 		fatal("tun open");
+	if (ioctl(sock_tun, TUNGIFINFO, &ti) == -1)
+		fatal("ioctl: TUNGIFINFO");
+	ti.mtu = TUNMRU;	/* Maximum value */
+	if (ioctl(sock_tun, TUNSIFINFO, &ti) == -1)
+		fatal("ioctl: TUNGIFINFO");
 	bzero(&ifra, sizeof(ifra));
 	strlcpy(ifra.ifra_name, tun_dev, sizeof(ifra.ifra_name));
 	ifra.ifra_addr.sin_len	     = sizeof(struct sockaddr_in);
@@ -277,7 +284,6 @@ icmp_open(void)
 	if (setsockopt(sock_icmp, SOL_SOCKET, SO_RCVBUF,
 	    &bufsize, sizeof(bufsize)) == -1)
 		log_warn("imcp set recv buffer size");
-
 	log_debug("sock_icmp = %d", sock_icmp);
 }
 
