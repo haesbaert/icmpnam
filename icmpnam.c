@@ -280,6 +280,7 @@ void
 icmp_open(void)
 {
 	int bufsize = BUFSIZE;
+	
 	if ((sock_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
 		fatal("socket");
 	if (setsockopt(sock_icmp, SOL_SOCKET, SO_RCVBUF,
@@ -293,11 +294,16 @@ void
 divert_open(void)
 {
 	struct sockaddr_in sin;
+	int bufsize = BUFSIZE;
 	
 	bzero(&sin, sizeof(sin));
 	sin.sin_port = htons(divert_port);
 	if ((sock_divert = socket(AF_INET, SOCK_RAW, IPPROTO_DIVERT)) == -1)
 		fatal("socket");
+	if (setsockopt(sock_divert, SOL_SOCKET, SO_RCVBUF,
+	    &bufsize, sizeof(bufsize)) == -1)
+		log_warn("divert set recv buffer size");
+
 	if (bind(sock_divert, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 		fatal("bind");
 	log_debug("sock_divert = %d", sock_divert);
