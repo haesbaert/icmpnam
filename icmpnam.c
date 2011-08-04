@@ -53,6 +53,7 @@ int		conf_load(char *);
 int		conf_remote(char **);
 int		conf_dev(char **);
 int		conf_divert_port(char **);
+int		conf_server(char **);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
@@ -69,6 +70,7 @@ char		 tun_dev[IFNAMSIZ];
 struct in_addr	 tun_us;
 struct in_addr	 tun_them;
 u_int16_t	 divert_port = DIVERT_PORT;
+int 		 server;
 union {
 	struct icmp	icmp;
 	char		buf[BUFSIZE];
@@ -83,6 +85,7 @@ struct configopts {
 	{"remote", 	conf_remote, 		1},
 	{"dev", 	conf_dev, 		3},
 	{"divert_port",	conf_divert_port,	1},
+	{"server",	conf_server,		0},
 	{NULL, 		NULL, 			-1},
 };
 
@@ -157,6 +160,15 @@ conf_divert_port(char **argv)
 		return (-1);
 	}
 	log_debug("divert_port = %u", divert_port);
+	
+	return (0);
+}
+
+int
+conf_server(char **argv)
+{
+	server = 1;
+	log_debug("server");
 	
 	return (0);
 }
@@ -244,7 +256,9 @@ conf_load(char *cfile)
 	/* Check if we have everything */
 	if (tun_dev[0] == 0)
 		fatalx("no dev specified");
-	if (in_remote.s_addr == 0)
+	if (server && in_remote.s_addr)
+		fatalx("either server option or remote option");
+	if (!server && in_remote.s_addr == 0)
 		fatalx("no remote specified");
 	
 	return (0);
