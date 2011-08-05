@@ -60,6 +60,7 @@ void		divert_open(void);
 void		tun_read(int, short, void *);
 void		icmp_read(int, short, void *);
 void		divert_read(int, short, void *);
+void		icmp_beat(int, short, void *);
 
 extern char		*malloc_options;
 int			 sock_tun;
@@ -482,12 +483,25 @@ again:
 		    n2, n);
 }
 
+void
+icmp_beat(int fd, short event, void *v_ev)
+{
+	struct event *ev = v_ev;
+	struct timeval tv;
+	
+	timerclear(&tv);
+	tv.tv_sec = 1;
+
+	/* TODO */
+	evtimer_add(ev, &tv);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int ch, debug;
 	char *cfile;
-	struct event ev_tun, ev_divert, ev_icmp;
+	struct event ev_tun, ev_divert, ev_icmp, ev_icmp_beat;
 	
 	debug = 0;
 	cfile = CONFIGFILE;
@@ -533,6 +547,13 @@ main(int argc, char *argv[])
 	event_set(&ev_divert, sock_divert, EV_READ|EV_PERSIST,
 	    divert_read, NULL);
 	event_add(&ev_divert, NULL);
+	if (!server) {
+		struct timeval tv;
+		timerclear(&tv);
+		tv.tv_sec = 1;
+		evtimer_set(&ev_icmp_beat, icmp_beat, &ev_icmp_beat);
+		evtimer_add(&ev_icmp_beat, &tv);
+	}
 	/* Finally go daemon */
 	if (!debug)
 		daemon(1, 0);
