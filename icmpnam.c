@@ -342,17 +342,60 @@ divert_open(void)
 	log_debug("sock_divert = %d", sock_divert);
 }
 
-/* TODO */
 void
 tun_read(int fd, short event, void *unused)
 {
-	ssize_t n;
+	ssize_t n, n2;
+	struct icmp *icmp;
+	struct iovec iov[2];
+	struct msghdr msg;
+	struct ip *ip;
+	char *p;
 	
-	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
-		fatal("tun_read: read");
+	p = read_buf;
+	if ((n = read(fd, p + ICMP_MINLEN,
+	    sizeof(read_buf) - ICMP_MINLEN)) == -1) {
+		if (errno != EINTR && errno != EAGAIN)
+			fatal("tun_read: read");
+		return;
+	}
 	else if (n == 0)
 		fatalx("tun_read: closed socket");
-	
+	/* If we're server and don't know remote, drop */
+	if (server && sin_remote.sin_addr.s_addr == 0) {
+		log_warnx("don't know remote address, dropping");
+		return;
+	}
+	/* NOTE alignment assured */
+	icmp = (struct icmp *)p;
+	/* Encap */
+	icmp->icmp_type	 = ICMP_ECHOREPLY;
+	icmp->icmp_code	 = 0;
+	icmp->icmp_id	 = htons(MAGIC_ID);
+	icmp->icmp_seq	 = 0;	/* NOTE We could match seq */
+	icmp->icmp_cksum = 0;	/* TODO */
+	p  += ICMP_MINLEN;
+	ip  = (struct ip *)p;
+	/* Build message */
+	bzero(&msg, sizeof(msg));
+	msg.msg_name	= &sin_remote.sin_addr; 
+	msg.msg_namelen = sizeof(sin_remote.sin_addr);
+	msg.msg_iov	= iov;
+	msg.msg_iovlen	= 2;
+	iov[0].iov_base = icmp;
+	iov[0].iov_len	= ICMP_MINLEN;
+	iov[1].iov_base = ip;
+	iov[1].iov_len	= n;
+again:
+	if ((n2 = sendmsg(sock_icmp, &msg, 0)) == -1) {
+		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
+			fatal("tun_read: imcp sendto");
+		goto again;
+	}
+	else if (n2 == 0)
+		fatalx("tun_read: icmp closed");
+	else if (n2 != ICMP_MINLEN + n)
+		fatalx("tun_read: write shortcount");
 }
 /* TODO */
 void
