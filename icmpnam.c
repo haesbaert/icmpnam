@@ -61,16 +61,16 @@ void		tun_read(int, short, void *);
 void		icmp_read(int, short, void *);
 void		divert_read(int, short, void *);
 
-extern char	*malloc_options;
-int		 sock_tun;
-int		 sock_icmp;
-int		 sock_divert;
-struct in_addr	 in_remote;
-char		 tun_dev[IFNAMSIZ];
-struct in_addr	 tun_us;
-struct in_addr	 tun_them;
-u_int16_t	 divert_port = DIVERT_PORT;
-int 		 server;
+extern char		*malloc_options;
+int			 sock_tun;
+int			 sock_icmp;
+int			 sock_divert;
+struct sockaddr_in	 sin_remote;
+char			 tun_dev[IFNAMSIZ];
+struct in_addr		 tun_us;
+struct in_addr		 tun_them;
+u_int16_t		 divert_port = DIVERT_PORT;
+int			 server;
 union {
 	struct icmp	icmp;
 	char		buf[BUFSIZE];
@@ -114,10 +114,11 @@ conf_remote(char **argv)
 {
 	char *s = argv[0];
 	
-	if (inet_aton(s, &in_remote) == -1) {
+	if (inet_aton(s, &sin_remote.sin_addr) == -1) {
 		log_warn("invalid remote");
 		return (-1);
 	}
+	sin_remote.sin_len = sizeof(sin_remote);
 	log_debug("remote %s", s);
 	
 	return (0);
@@ -256,9 +257,9 @@ conf_load(char *cfile)
 	/* Check if we have everything */
 	if (tun_dev[0] == 0)
 		fatalx("no dev specified");
-	if (server && in_remote.s_addr)
+	if (server && sin_remote.sin_addr.s_addr)
 		fatalx("either server option or remote option");
-	if (!server && in_remote.s_addr == 0)
+	if (!server && sin_remote.sin_addr.s_addr == 0)
 		fatalx("no remote specified");
 	
 	return (0);
@@ -372,14 +373,20 @@ divert_read(int fd, short event, void *unused)
 	char *p;
 	struct icmp *icmp;
 	struct ip *ip;
+	struct sockaddr_in sin;
+	socklen_t sinlen;
 
-	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1) {
+	if ((n = recvfrom(fd, read_buf, sizeof(read_buf), 0,
+	    (struct sockaddr *)&sin, &sinlen)) == -1) {
 		if (errno != EINTR && errno != EAGAIN)
 			fatal("divert_read: read");
 		return;
 	}
 	else if (n == 0)
 		fatalx("divert_read: closed socket");
+	/* If we're the server, record the other endpoint address */
+	if (server)
+		sin_remote = sin;
 	/* NOTE alignment assured by union */
 	p = read_buf;
 	/* ICMP */
