@@ -385,8 +385,10 @@ divert_read(int fd, short event, void *unused)
 	else if (n == 0)
 		fatalx("divert_read: closed socket");
 	/* If we're the server, record the other endpoint address */
-	if (server)
+	if (server && sin_remote.sin_addr.s_addr == 0) {
 		sin_remote = sin;
+		log_info("remote %s", inet_ntoa(sin_remote.sin_addr));
+	}
 	/* NOTE alignment assured by union */
 	p = read_buf;
 	/* ICMP */
