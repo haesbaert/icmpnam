@@ -397,16 +397,20 @@ again:
 	else if (n2 != ICMP_MINLEN + n)
 		fatalx("tun_read: write shortcount");
 }
-/* TODO */
+
 void
 icmp_read(int fd, short event, void *unused)
 {
 	ssize_t n;
 	
-	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1)
-		fatal("icmp_read: read");
+	if ((n = read(fd, read_buf, sizeof(read_buf))) == -1) {
+		if (errno != EINTR && errno != EAGAIN)
+			fatal("icmp_read: read");
+		return;
+	}
 	else if (n == 0)
 		fatalx("icmp_read: closed socket");
+	log_debug("icmp_read: dropping icmp packet %zd", n);
 }
 
 void
