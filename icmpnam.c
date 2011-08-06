@@ -44,6 +44,7 @@
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
 #define MAGIC_ID	1805
+#define BEAT_ID		0403
 #define DIVERT_PORT	1805
 #define BUFSIZE		65636
 
@@ -370,7 +371,7 @@ tun_read(int fd, short event, void *unused)
 	/* NOTE alignment assured */
 	icmp = (struct icmp *)p;
 	/* Encap */
-	icmp->icmp_type	 = ICMP_ECHOREPLY;
+	icmp->icmp_type	 = server ? ICMP_ECHOREPLY : ICMP_ECHO;
 	icmp->icmp_code	 = 0;
 	icmp->icmp_id	 = htons(MAGIC_ID);
 	icmp->icmp_seq	 = 0;	/* NOTE We could match seq */
@@ -379,8 +380,8 @@ tun_read(int fd, short event, void *unused)
 	ip  = (struct ip *)p;
 	/* Build message */
 	bzero(&msg, sizeof(msg));
-	msg.msg_name	= &sin_remote.sin_addr; 
-	msg.msg_namelen = sizeof(sin_remote.sin_addr);
+	msg.msg_name	= &sin_remote; 
+	msg.msg_namelen = sizeof(sin_remote);
 	msg.msg_iov	= iov;
 	msg.msg_iovlen	= 2;
 	iov[0].iov_base = icmp;
@@ -488,11 +489,24 @@ icmp_beat(int fd, short event, void *v_ev)
 {
 	struct event *ev = v_ev;
 	struct timeval tv;
+	struct icmp icmp;
+	ssize_t n;
 	
 	timerclear(&tv);
 	tv.tv_sec = 1;
-
-	/* TODO */
+	bzero(&icmp, sizeof(icmp));
+	icmp.icmp_type	= ICMP_ECHO;
+	icmp.icmp_code	= 0;
+	icmp.icmp_id	= htons(BEAT_ID);
+	icmp.icmp_seq	= 0;
+	icmp.icmp_cksum = 0;	/* TODO */
+	if ((n = sendto(sock_icmp, &icmp, ICMP_MINLEN, 0,
+	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1)
+		fatal("icmp_beat");
+	else if (n == 0)
+		fatalx("icmp_beat: socket closed");
+	else if (n < ICMP_MINLEN)
+		log_warnx("icmp_beat: shortcount %zd/%zd", n, ICMP_MINLEN);
 	evtimer_add(ev, &tv);
 }
 
