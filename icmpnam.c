@@ -427,7 +427,9 @@ divert_read(int fd, short event, void *unused)
 		log_info("remote %s", inet_ntoa(sin_remote.sin_addr));
 	}
 	/* NOTE alignment assured by union */
-	p = read_buf;
+	/* Skip ip header */
+	ip = (struct ip *)read_buf;
+	p  = read_buf + (ip->ip_hl * 4);	/* ip header len is in words */
 	/* ICMP */
 	icmp = (struct icmp *)p;
 	if (n < ICMP_MINLEN) {
@@ -444,8 +446,11 @@ divert_read(int fd, short event, void *unused)
 		    icmp->icmp_code);
 		return;
 	}
-	if (ntohs(icmp->icmp_id) != MAGIC_ID) {
-		log_debug("divert_read: packet not for us, id %u",
+	/* Just drop if beat id */
+	if (ntohs(icmp->icmp_id) == BEAT_ID)
+		return;
+	else if (ntohs(icmp->icmp_id) != MAGIC_ID) {
+		log_debug("divert_read: packet not for us, id 0x%x",
 		    ntohs(icmp->icmp_id));
 		return;
 	}
