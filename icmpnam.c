@@ -116,8 +116,8 @@ conf_remote(char **argv)
 {
 	char *s = argv[0];
 	
-	if (inet_aton(s, &sin_remote.sin_addr) == -1) {
-		log_warn("invalid remote");
+	if (inet_aton(s, &sin_remote.sin_addr) != 1) {
+		log_warnx("invalid remote");
 		return (-1);
 	}
 	sin_remote.sin_len = sizeof(sin_remote);
@@ -138,12 +138,12 @@ conf_dev(char **argv)
 		return (-1);
 	}
 	(void)strlcpy(tun_dev, dev, sizeof(tun_dev));
-	if (inet_aton(us, &tun_us) == -1) {
-		log_warn("invalid address %s", us);
+	if (inet_aton(us, &tun_us) != 1) {
+		log_warnx("invalid address %s", us);
 		return (-1);
 	}
 	if (inet_aton(them, &tun_them) == -1) {
-		log_warn("invalid address %s", them);
+		log_warnx("invalid address %s", them);
 		return (-1);
 	}
 	log_debug("dev %s %s %s", dev, us, them);
