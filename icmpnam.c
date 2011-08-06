@@ -62,6 +62,7 @@ void		tun_read(int, short, void *);
 void		icmp_read(int, short, void *);
 void		divert_read(int, short, void *);
 void		icmp_beat(int, short, void *);
+int		in_cksum(u_short *, int);
 
 extern char		*malloc_options;
 int			 sock_tun;
@@ -508,6 +509,39 @@ icmp_beat(int fd, short event, void *v_ev)
 	else if (n < ICMP_MINLEN)
 		log_warnx("icmp_beat: shortcount %zd/%zd", n, ICMP_MINLEN);
 	evtimer_add(ev, &tv);
+}
+
+/* From ping.c */
+int
+in_cksum(u_short *addr, int len)
+{
+	int nleft = len;
+	u_short *w = addr;
+	int sum = 0;
+	u_short answer = 0;
+
+	/*
+	 * Our algorithm is simple, using a 32 bit accumulator (sum), we add
+	 * sequential 16 bit words to it, and at the end, fold back all the
+	 * carry bits from the top 16 bits into the lower 16 bits.
+	 */
+	while (nleft > 1)  {
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	/* mop up an odd byte, if necessary */
+	if (nleft == 1) {
+		*(u_char *)(&answer) = *(u_char *)w ;
+		sum += answer;
+	}
+
+	/* add back carry outs from top 16 bits to low 16 bits */
+	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+	sum += (sum >> 16);			/* add carry */
+	answer = ~sum;				/* truncate to 16 bits */
+	
+	return(answer);
 }
 
 int
