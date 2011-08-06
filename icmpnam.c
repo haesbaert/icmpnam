@@ -350,9 +350,6 @@ tun_read(int fd, short event, void *unused)
 {
 	ssize_t n, n2;
 	struct icmp *icmp;
-	struct iovec iov[2];
-	struct msghdr msg;
-	struct ip *ip;
 	char *p;
 	
 	p = read_buf;
@@ -377,20 +374,10 @@ tun_read(int fd, short event, void *unused)
 	icmp->icmp_id	 = htons(MAGIC_ID);
 	icmp->icmp_seq	 = 0;	/* NOTE We could match seq */
 	icmp->icmp_cksum = 0;	/* TODO */
-	p  += ICMP_MINLEN;
-	ip  = (struct ip *)p;
-	/* Build message */
-	bzero(&msg, sizeof(msg));
-	msg.msg_name	= &sin_remote; 
-	msg.msg_namelen = sizeof(sin_remote);
-	msg.msg_iov	= iov;
-	msg.msg_iovlen	= 2;
-	iov[0].iov_base = icmp;
-	iov[0].iov_len	= ICMP_MINLEN;
-	iov[1].iov_base = ip;
-	iov[1].iov_len	= n;
+	icmp->icmp_cksum = in_cksum((u_short *)icmp, ICMP_MINLEN + n);
 again:
-	if ((n2 = sendmsg(sock_icmp, &msg, 0)) == -1) {
+	if ((n2 = sendto(sock_icmp, p, ICMP_MINLEN + n, 0,
+	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1) {
 		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
 			fatal("tun_read: imcp sendto");
 		goto again;
@@ -500,10 +487,15 @@ icmp_beat(int fd, short event, void *v_ev)
 	icmp.icmp_code	= 0;
 	icmp.icmp_id	= htons(BEAT_ID);
 	icmp.icmp_seq	= 0;
-	icmp.icmp_cksum = 0;	/* TODO */
+	icmp.icmp_cksum = 0;
+	icmp.icmp_cksum = in_cksum((u_short *)&icmp, ICMP_MINLEN);
+again:
 	if ((n = sendto(sock_icmp, &icmp, ICMP_MINLEN, 0,
-	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1)
-		fatal("icmp_beat");
+	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1) {
+		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
+			fatal("icmp_beat: imcp sendto");
+		goto again;
+	}
 	else if (n == 0)
 		fatalx("icmp_beat: socket closed");
 	else if (n < ICMP_MINLEN)
