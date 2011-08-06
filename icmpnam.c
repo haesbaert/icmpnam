@@ -43,8 +43,8 @@
 
 #define CONFIGFILE	"/etc/icmpnam.conf"
 #define VERSION		"muahaha"
-#define MAGIC_ID	1805
-#define BEAT_ID		0403
+#define MAGIC_ID	0x1805
+#define BEAT_ID		0x0403
 #define DIVERT_PORT	1805
 #define BUFSIZE		65636
 
