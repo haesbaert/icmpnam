@@ -97,7 +97,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-d] [-f configfile]\n",
+	fprintf(stderr, "usage: %s [-bd] [-f configfile]\n",
 	    __progname);
 	fprintf(stderr, "usage: %s -v\n", __progname);
 	exit(1);
@@ -350,6 +350,7 @@ tun_read(int fd, short event, void *unused)
 {
 	ssize_t n, n2;
 	struct icmp *icmp;
+	struct ip *ip;
 	char *p;
 	
 	p = read_buf;
@@ -375,6 +376,7 @@ tun_read(int fd, short event, void *unused)
 	icmp->icmp_seq	 = 0;	/* NOTE We could match seq */
 	icmp->icmp_cksum = 0;	/* TODO */
 	icmp->icmp_cksum = in_cksum((u_short *)icmp, ICMP_MINLEN + n);
+	ip = (struct ip )p + ICMP_MINLEN + 4; /* 4 bytes for tun prefix */
 again:
 	if ((n2 = sendto(sock_icmp, p, ICMP_MINLEN + n, 0,
 	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1) {
@@ -430,6 +432,7 @@ divert_read(int fd, short event, void *unused)
 	/* Skip ip header */
 	ip = (struct ip *)read_buf;
 	p  = read_buf + (ip->ip_hl * 4);	/* ip header len is in words */
+	n -= (ip->ip_hl * 4);
 	/* ICMP */
 	icmp = (struct icmp *)p;
 	if (n < ICMP_MINLEN) {
@@ -544,14 +547,17 @@ in_cksum(u_short *addr, int len)
 int
 main(int argc, char *argv[])
 {
-	int ch, debug;
+	int ch, debug, nobeat;
 	char *cfile;
 	struct event ev_tun, ev_divert, ev_icmp, ev_icmp_beat;
 	
-	debug = 0;
+	debug = nobeat = 0;
 	cfile = CONFIGFILE;
-	while ((ch = getopt(argc, argv, "dvf:")) != -1) {
+	while ((ch = getopt(argc, argv, "bdvf:")) != -1) {
 		switch (ch) {
+		case 'b':
+			nobeat = 1;
+			break;
 		case 'd':
 			debug = 1;
 			malloc_options = "AFGJPX";
@@ -592,7 +598,7 @@ main(int argc, char *argv[])
 	event_set(&ev_divert, sock_divert, EV_READ|EV_PERSIST,
 	    divert_read, NULL);
 	event_add(&ev_divert, NULL);
-	if (!server) {
+	if (!server && nobeat == 0) {
 		struct timeval tv;
 		timerclear(&tv);
 		tv.tv_sec = 1;
