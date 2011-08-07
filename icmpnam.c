@@ -350,12 +350,12 @@ tun_read(int fd, short event, void *unused)
 {
 	ssize_t n, n2;
 	struct icmp *icmp;
-	struct ip *ip;
 	char *p;
 	
 	p = read_buf;
-	if ((n = read(fd, p + ICMP_MINLEN,
-	    sizeof(read_buf) - ICMP_MINLEN)) == -1) {
+	/* Jump over ICMP, cut 4 bytes for tun header */
+	if ((n = read(fd, p + ICMP_MINLEN - 4,
+	    sizeof(read_buf) + ICMP_MINLEN - 4)) == -1) {
 		if (errno != EINTR && errno != EAGAIN)
 			fatal("tun_read: read");
 		return;
@@ -367,18 +367,18 @@ tun_read(int fd, short event, void *unused)
 		log_warnx("don't know remote address, dropping");
 		return;
 	}
-	/* NOTE alignment assured */
-	icmp = (struct icmp *)p;
+	n += ICMP_MINLEN - 4; 	/* Consume tun header */
 	/* Encap */
+	icmp = (struct icmp *)p;
 	icmp->icmp_type	 = server ? ICMP_ECHOREPLY : ICMP_ECHO;
 	icmp->icmp_code	 = 0;
+	/* Id and seq will overwrite tun header. */
 	icmp->icmp_id	 = htons(MAGIC_ID);
 	icmp->icmp_seq	 = 0;	/* NOTE We could match seq */
-	icmp->icmp_cksum = 0;	/* TODO */
-	icmp->icmp_cksum = in_cksum((u_short *)icmp, ICMP_MINLEN + n);
-	ip = (struct ip )p + ICMP_MINLEN + 4; /* 4 bytes for tun prefix */
+	icmp->icmp_cksum = 0;
+	icmp->icmp_cksum = in_cksum((u_short *)icmp, n);
 again:
-	if ((n2 = sendto(sock_icmp, p, ICMP_MINLEN + n, 0,
+	if ((n2 = sendto(sock_icmp, icmp, n, 0,
 	    (struct sockaddr *)&sin_remote, sizeof(sin_remote))) == -1) {
 		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
 			fatal("tun_read: imcp sendto");
@@ -386,7 +386,7 @@ again:
 	}
 	else if (n2 == 0)
 		fatalx("tun_read: icmp closed");
-	else if (n2 != ICMP_MINLEN + n)
+	else if (n2 != n)
 		fatalx("tun_read: write shortcount");
 }
 
