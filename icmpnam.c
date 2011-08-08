@@ -55,6 +55,7 @@ int		conf_remote(char **);
 int		conf_dev(char **);
 int		conf_divert_port(char **);
 int		conf_server(char **);
+int		conf_nobeat(char **);
 void		tun_open(void);
 void		icmp_open(void);
 void		divert_open(void);
@@ -74,6 +75,7 @@ struct in_addr		 tun_us;
 struct in_addr		 tun_them;
 u_int16_t		 divert_port = DIVERT_PORT;
 int			 server;
+int 			 nobeat;
 union {
 	struct icmp	icmp;
 	char		buf[BUFSIZE];
@@ -89,6 +91,7 @@ struct configopts {
 	{"dev", 	conf_dev, 		3},
 	{"divert_port",	conf_divert_port,	1},
 	{"server",	conf_server,		0},
+	{"nobeat",	conf_nobeat,		0},
 	{NULL, 		NULL, 			-1},
 };
 
@@ -173,6 +176,15 @@ conf_server(char **argv)
 {
 	server = 1;
 	log_debug("server");
+	
+	return (0);
+}
+
+int
+conf_nobeat(char **argv)
+{
+	nobeat = 1;
+	log_debug("nobeat");
 	
 	return (0);
 }
@@ -482,7 +494,7 @@ again:
 	}
 	else if (n2 == 0)
 		fatalx("divert_read: tun closed");
-	else if (n2 != n + sizeof(tunh))
+	else if (n2 != n + (int)sizeof(tunh))
 		log_warnx("divert_read: write shortcount %zd/%zd",
 		    n2, n);
 }
@@ -554,11 +566,11 @@ in_cksum(u_short *addr, int len)
 int
 main(int argc, char *argv[])
 {
-	int ch, debug, nobeat;
+	int ch, debug;
 	char *cfile;
 	struct event ev_tun, ev_divert, ev_icmp, ev_icmp_beat;
 	
-	debug = nobeat = 0;
+	debug = 0;
 	cfile = CONFIGFILE;
 	while ((ch = getopt(argc, argv, "bdvf:")) != -1) {
 		switch (ch) {
