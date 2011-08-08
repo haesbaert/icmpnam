@@ -482,7 +482,7 @@ again:
 	}
 	else if (n2 == 0)
 		fatalx("divert_read: tun closed");
-	else if (n2 != n)
+	else if (n2 != n + sizeof(tunh))
 		log_warnx("divert_read: write shortcount %zd/%zd",
 		    n2, n);
 }
