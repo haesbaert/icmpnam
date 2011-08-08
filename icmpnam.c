@@ -414,6 +414,8 @@ divert_read(int fd, short event, void *unused)
 	struct ip *ip;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
+	u_int32_t tunh;
+	struct iovec iov[2];
 
 	if ((n = recvfrom(fd, read_buf, sizeof(read_buf), 0,
 	    (struct sockaddr *)&sin, &sinlen)) == -1) {
@@ -467,10 +469,15 @@ divert_read(int fd, short event, void *unused)
 		return;
 	}
 	/* Tun injection */
+	tunh = htonl(AF_INET);
+	iov[0].iov_base = &tunh;
+	iov[0].iov_len	= sizeof(tunh);
+	iov[1].iov_base = ip;
+	iov[1].iov_len	= n;
 again:
-	if ((n2 = write(sock_tun, ip, n)) == -1) {
+	if ((n2 = writev(sock_tun, iov, 2)) == -1) {
 		if (errno != EINTR && errno != EAGAIN && errno != ENOBUFS)
-			fatal("divert_read: tun write");
+			fatal("divert_read: tun writev");
 		goto again;
 	}
 	else if (n2 == 0)
